@@ -1,0 +1,533 @@
+﻿using System.ComponentModel.DataAnnotations;
+
+namespace TaskFlowManagement.Core.Entities
+{
+    public class Attachment
+    {
+        public int Id { get; set; }
+
+        [Required, MaxLength(255)]
+        public string FileName { get; set; } = string.Empty;
+
+        [Required, MaxLength(500)]
+        public string FilePath { get; set; } = string.Empty;
+
+        [MaxLength(100)]
+        public string? ContentType { get; set; }
+
+        public long FileSizeBytes { get; set; }
+
+        public DateTime UploadedAt { get; set; } = DateTime.UtcNow;
+
+        public int TaskItemId { get; set; }
+        public TaskItem TaskItem { get; set; } = null!;
+
+        public int UploadedById { get; set; }
+        public User UploadedBy { get; set; } = null!;
+    }
+}
+using System.ComponentModel.DataAnnotations;
+
+namespace TaskFlowManagement.Core.Entities
+{
+    public class Category
+    {
+        public int Id { get; set; }
+
+        [Required, MaxLength(100)]
+        public string Name { get; set; } = string.Empty;
+
+        [MaxLength(300)]
+        public string? Description { get; set; }
+
+        public ICollection<TaskItem> TaskItems { get; set; } = new List<TaskItem>();
+    }
+}
+using System.ComponentModel.DataAnnotations;
+
+namespace TaskFlowManagement.Core.Entities
+{
+    public class Comment
+    {
+        public int Id { get; set; }
+
+        [Required, MaxLength(2000)]
+        public string Content { get; set; } = string.Empty;
+
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+        public int TaskItemId { get; set; }
+        public TaskItem TaskItem { get; set; } = null!;
+
+        public int UserId { get; set; }
+        public User User { get; set; } = null!;
+    }
+}
+using System.ComponentModel.DataAnnotations;
+
+namespace TaskFlowManagement.Core.Entities
+{
+    /// <summary>
+    /// KhÃ¡ch hÃ ng - Ä‘Æ¡n vá»‹ yÃªu cáº§u phÃ¡t triá»ƒn dá»± Ã¡n
+    /// </summary>
+    public class Customer
+    {
+        public int Id { get; set; }
+
+        [Required, MaxLength(200)]
+        public string CompanyName { get; set; } = string.Empty;
+
+        [MaxLength(100)]
+        public string? ContactName { get; set; }
+
+        [MaxLength(100)]
+        public string? Email { get; set; }
+
+        [MaxLength(20)]
+        public string? Phone { get; set; }
+
+        [MaxLength(300)]
+        public string? Address { get; set; }
+
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+        /* ================= RELATIONSHIPS ================= */
+        public ICollection<Project> Projects { get; set; } = new List<Project>();
+    }
+}
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+
+namespace TaskFlowManagement.Core.Entities
+{
+    /// <summary>
+    /// Chi phÃ­ phÃ¡t sinh trong dá»± Ã¡n
+    /// </summary>
+    public class Expense
+    {
+        public int Id { get; set; }
+
+        public int ProjectId { get; set; }
+        public Project Project { get; set; } = null!;
+
+        [Required, MaxLength(100)]
+        public string ExpenseType { get; set; } = string.Empty; // NhÃ¢n cÃ´ng / Pháº§n má»m / Háº¡ táº§ng
+
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal Amount { get; set; }
+
+        public DateOnly ExpenseDate { get; set; }
+
+        [MaxLength(300)]
+        public string? Note { get; set; }
+
+        public int CreatedById { get; set; }
+        public User CreatedBy { get; set; } = null!;
+
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    }
+}
+using System.ComponentModel.DataAnnotations;
+
+namespace TaskFlowManagement.Core.Entities
+{
+    public class Priority
+    {
+        public int Id { get; set; }
+
+        [Required, MaxLength(50)]
+        public string Name { get; set; } = string.Empty;
+
+        /// <summary>1=Low, 2=Medium, 3=High, 4=Critical</summary>
+        public byte Level { get; set; }
+
+        [MaxLength(7)]
+        public string? ColorHex { get; set; } // e.g. "#FF5722"
+
+        public ICollection<TaskItem> TaskItems { get; set; } = new List<TaskItem>();
+    }
+}
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+
+namespace TaskFlowManagement.Core.Entities
+{
+    public class Project
+    {
+        public int Id { get; set; }
+
+        [Required, MaxLength(200)]
+        public string Name { get; set; } = string.Empty;
+
+        [MaxLength(2000)]
+        public string? Description { get; set; }
+
+        // ---- KhÃ¡ch hÃ ng ----
+        public int? CustomerId { get; set; }
+        public Customer? Customer { get; set; }
+
+        // ---- NgÆ°á»i sá»Ÿ há»¯u / PM ----
+        public int OwnerId { get; set; }
+        public User Owner { get; set; } = null!;
+
+        // ---- Timeline ----
+        public DateOnly StartDate { get; set; }
+        public DateOnly? PlannedEndDate { get; set; }
+        public DateOnly? ActualEndDate { get; set; }
+
+        // ---- NgÃ¢n sÃ¡ch ----
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal Budget { get; set; } = 0;
+
+        // ---- Tráº¡ng thÃ¡i & Æ¯u tiÃªn ----
+        /// <summary>NotStarted | InProgress | OnHold | Completed | Cancelled</summary>
+        [Required, MaxLength(30)]
+        public string Status { get; set; } = "NotStarted";
+
+        /// <summary>1=Low | 2=Medium | 3=High | 4=Critical</summary>
+        public byte Priority { get; set; } = 2;
+
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+        public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
+        /* ================= RELATIONSHIPS ================= */
+        public ICollection<TaskItem> Tasks { get; set; } = new List<TaskItem>();
+        public ICollection<ProjectMember> Members { get; set; } = new List<ProjectMember>();
+        public ICollection<Expense> Expenses { get; set; } = new List<Expense>();
+
+        /* ================= COMPUTED (khÃ´ng map DB) ================= */
+        [NotMapped]
+        public decimal TotalExpense => Expenses?.Sum(e => e.Amount) ?? 0;
+
+        [NotMapped]
+        public int ProgressPercent
+        {
+            get
+            {
+                var rootTasks = Tasks?.Where(t => t.ParentTaskId == null).ToList();
+                if (rootTasks == null || rootTasks.Count == 0) return 0;
+                return (int)rootTasks.Average(t => t.ProgressPercent);
+            }
+        }
+    }
+}
+using System.ComponentModel.DataAnnotations;
+
+namespace TaskFlowManagement.Core.Entities
+{
+    /// <summary>
+    /// Báº£ng trung gian: ThÃ nh viÃªn tham gia dá»± Ã¡n + vai trÃ² trong dá»± Ã¡n
+    /// </summary>
+    public class ProjectMember
+    {
+        public int Id { get; set; }
+
+        public int ProjectId { get; set; }
+        public Project Project { get; set; } = null!;
+
+        public int UserId { get; set; }
+        public User User { get; set; } = null!;
+
+        /// <summary>Developer | Tester | BA | Tech Lead | PM</summary>
+        [MaxLength(50)]
+        public string? ProjectRole { get; set; }
+
+        public DateTime JoinedAt { get; set; } = DateTime.UtcNow;
+
+        public DateTime? LeftAt { get; set; }
+    }
+}
+using System.ComponentModel.DataAnnotations;
+
+namespace TaskFlowManagement.Core.Entities
+{
+    public class Role
+    {
+        public int Id { get; set; }
+
+        /// <summary>Admin | Manager | Developer</summary>
+        [Required, MaxLength(50)]
+        public string Name { get; set; } = string.Empty;
+
+        [MaxLength(200)]
+        public string? Description { get; set; }
+
+        public ICollection<UserRole> UserRoles { get; set; } = new List<UserRole>();
+    }
+}
+using System.ComponentModel.DataAnnotations;
+
+namespace TaskFlowManagement.Core.Entities
+{
+    /// <summary>
+    /// Tráº¡ng thÃ¡i cÃ´ng viá»‡c â€” workflow 10 bÆ°á»›c quáº£n lÃ½ dá»± Ã¡n pháº§n má»m.
+    /// 
+    /// Luá»“ng chÃ­nh:
+    ///   CREATED â†’ ASSIGNED â†’ IN-PROGRESS â†’ REVIEW-1 â†’ REVIEW-2 â†’ APPROVED â†’ IN-TEST â†’ RESOLVED â†’ CLOSED
+    /// Luá»“ng reject:
+    ///   REVIEW-1 / REVIEW-2 / IN-TEST â†’ FAILED â†’ IN-PROGRESS (sá»­a láº¡i)
+    /// </summary>
+    public class Status
+    {
+        public int Id { get; set; }
+
+        /// <summary>TÃªn tráº¡ng thÃ¡i (VD: CREATED, IN-PROGRESS, REVIEW-1...).</summary>
+        [Required, MaxLength(50)]
+        public string Name { get; set; } = string.Empty;
+
+        /// <summary>MÃ´ táº£ cÃ´ng dá»¥ng cá»§a tráº¡ng thÃ¡i (hiá»ƒn thá»‹ trÃªn UI).</summary>
+        [MaxLength(300)]
+        public string? Description { get; set; }
+
+        /// <summary>Thá»© tá»± hiá»ƒn thá»‹ trÃªn Kanban / danh sÃ¡ch (0 = Ä‘áº§u tiÃªn).</summary>
+        public byte DisplayOrder { get; set; } = 0;
+
+        /// <summary>MÃ£ mÃ u hex Ä‘á»ƒ tÃ´ mÃ u trÃªn giao diá»‡n (VD: #4CAF50).</summary>
+        [MaxLength(7)]
+        public string? ColorHex { get; set; }
+
+        public ICollection<TaskItem> TaskItems { get; set; } = new List<TaskItem>();
+    }
+}
+using System.ComponentModel.DataAnnotations;
+
+namespace TaskFlowManagement.Core.Entities
+{
+    public class Tag
+    {
+        public int Id { get; set; }
+
+        [Required, MaxLength(50)]
+        public string Name { get; set; } = string.Empty;
+
+        public ICollection<TaskTag> TaskTags { get; set; } = new List<TaskTag>();
+    }
+}
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+
+namespace TaskFlowManagement.Core.Entities
+{
+    /// <summary>
+    /// CÃ´ng viá»‡c (Task) trong dá»± Ã¡n.
+    /// 
+    /// Workflow 10 tráº¡ng thÃ¡i:
+    ///   CREATED â†’ ASSIGNED â†’ IN-PROGRESS â†’ REVIEW-1 â†’ REVIEW-2 â†’ APPROVED â†’ IN-TEST â†’ RESOLVED â†’ CLOSED
+    ///                             â†‘             â†“          â†“                     â†“
+    ///                             â””â”€â”€â”€â”€â”€â”€â”€â”€ FAILED â†â”€â”€â”€â”€â”€â”€â”€â”˜â†â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+    /// 
+    /// Má»—i giai Ä‘oáº¡n cÃ³ ngÆ°á»i phá»¥ trÃ¡ch riÃªng:
+    ///   - AssignedTo: ngÆ°á»i lÃ m task (Developer)
+    ///   - Reviewer1: ngÆ°á»i review láº§n 1 (peer/team lead)
+    ///   - Reviewer2: ngÆ°á»i review láº§n 2 (senior/architect)
+    ///   - Tester: ngÆ°á»i kiá»ƒm thá»­ (QA)
+    /// 
+    /// Luá»“ng gÃ¡n ngÆ°á»i:
+    ///   Táº¡o task â†’ gÃ¡n Assignee
+    ///   Assignee xong â†’ chuyá»ƒn REVIEW-1 + gÃ¡n Reviewer1
+    ///   Reviewer1 pass â†’ chuyá»ƒn REVIEW-2 + gÃ¡n Reviewer2
+    ///   Reviewer2 pass â†’ APPROVED â†’ IN-TEST + gÃ¡n Tester
+    ///   Báº¥t ká»³ ai (Reviewer1/2, Tester) reject â†’ FAILED â†’ Assignee sá»­a láº¡i
+    /// </summary>
+    public class TaskItem
+    {
+        public int Id { get; set; }
+
+        /// <summary>TiÃªu Ä‘á» cÃ´ng viá»‡c (báº¯t buá»™c, tá»‘i Ä‘a 200 kÃ½ tá»±).</summary>
+        [Required, MaxLength(200)]
+        public string Title { get; set; } = string.Empty;
+
+        /// <summary>MÃ´ táº£ chi tiáº¿t cÃ´ng viá»‡c (tÃ¹y chá»n, tá»‘i Ä‘a 2000 kÃ½ tá»±).</summary>
+        [MaxLength(2000)]
+        public string? Description { get; set; }
+
+        /// <summary>ÄÃ¡nh dáº¥u task Ä‘Ã£ hoÃ n thÃ nh (tá»± Ä‘á»™ng set khi ProgressPercent = 100).</summary>
+        public bool IsCompleted { get; set; }
+
+        /// <summary>Pháº§n trÄƒm hoÃ n thÃ nh: 0â€“100. Khi = 100 â†’ IsCompleted = true.</summary>
+        [Range(0, 100)]
+        public byte ProgressPercent { get; set; } = 0;
+
+        /// <summary>Sá»‘ giá» Æ°á»›c tÃ­nh Ä‘á»ƒ hoÃ n thÃ nh task.</summary>
+        [Column(TypeName = "decimal(6,1)")]
+        public decimal? EstimatedHours { get; set; }
+
+        /// <summary>Sá»‘ giá» thá»±c táº¿ Ä‘Ã£ lÃ m.</summary>
+        [Column(TypeName = "decimal(6,1)")]
+        public decimal? ActualHours { get; set; }
+
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
+        /// <summary>Háº¡n chÃ³t hoÃ n thÃ nh task.</summary>
+        public DateTime? DueDate { get; set; }
+
+        /// <summary>Thá»i Ä‘iá»ƒm task Ä‘Æ°á»£c Ä‘Ã¡nh dáº¥u hoÃ n thÃ nh (status = RESOLVED/CLOSED).</summary>
+        public DateTime? CompletedAt { get; set; }
+
+        /* ================= RELATIONSHIPS ================= */
+
+        /// <summary>Dá»± Ã¡n chá»©a task nÃ y.</summary>
+        public int ProjectId { get; set; }
+        public Project Project { get; set; } = null!;
+
+        /// <summary>Task cha (há»— trá»£ sub-task lá»“ng nhau, null = task gá»‘c).</summary>
+        public int? ParentTaskId { get; set; }
+        public TaskItem? ParentTask { get; set; }
+        public ICollection<TaskItem> SubTasks { get; set; } = new List<TaskItem>();
+
+        /// <summary>NgÆ°á»i táº¡o task.</summary>
+        public int CreatedById { get; set; }
+        public User CreatedBy { get; set; } = null!;
+
+        /// <summary>NgÆ°á»i Ä‘Æ°á»£c giao thá»±c hiá»‡n task (Developer chÃ­nh).</summary>
+        public int? AssignedToId { get; set; }
+        public User? AssignedTo { get; set; }
+
+        // â”€â”€ GD3: Workflow Review & Test â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+        /// <summary>
+        /// NgÆ°á»i review láº§n 1 (peer review / team lead).
+        /// ÄÆ°á»£c gÃ¡n khi Assignee chuyá»ƒn task sang REVIEW-1.
+        /// </summary>
+        public int? Reviewer1Id { get; set; }
+        public User? Reviewer1 { get; set; }
+
+        /// <summary>
+        /// NgÆ°á»i review láº§n 2 (senior developer / architect).
+        /// ÄÆ°á»£c gÃ¡n khi Reviewer1 approve vÃ  chuyá»ƒn sang REVIEW-2.
+        /// </summary>
+        public int? Reviewer2Id { get; set; }
+        public User? Reviewer2 { get; set; }
+
+        /// <summary>
+        /// NgÆ°á»i kiá»ƒm thá»­ (QA / Tester).
+        /// ÄÆ°á»£c gÃ¡n khi Reviewer2 approve vÃ  chuyá»ƒn sang IN-TEST.
+        /// </summary>
+        public int? TesterId { get; set; }
+        public User? Tester { get; set; }
+
+        // â”€â”€ Lookup tables â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+        /// <summary>Má»©c Ä‘á»™ Æ°u tiÃªn (Low / Medium / High / Critical).</summary>
+        public int PriorityId { get; set; }
+        public Priority Priority { get; set; } = null!;
+
+        /// <summary>Tráº¡ng thÃ¡i hiá»‡n táº¡i trong workflow 10 bÆ°á»›c.</summary>
+        public int StatusId { get; set; }
+        public Status Status { get; set; } = null!;
+
+        /// <summary>PhÃ¢n loáº¡i task (Bug / Feature / Improvement / Research / Testing).</summary>
+        public int CategoryId { get; set; }
+        public Category Category { get; set; } = null!;
+
+        // â”€â”€ Collections â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+        /// <summary>Danh sÃ¡ch bÃ¬nh luáº­n trÃªn task.</summary>
+        public ICollection<Comment> Comments { get; set; } = new List<Comment>();
+
+        /// <summary>Danh sÃ¡ch file Ä‘Ã­nh kÃ¨m.</summary>
+        public ICollection<Attachment> Attachments { get; set; } = new List<Attachment>();
+
+        /// <summary>Danh sÃ¡ch tag gáº¯n trÃªn task.</summary>
+        public ICollection<TaskTag> TaskTags { get; set; } = new List<TaskTag>();
+    }
+}
+namespace TaskFlowManagement.Core.Entities
+{
+    public class TaskTag
+    {
+        public int TaskItemId { get; set; }
+        public TaskItem TaskItem { get; set; } = null!;
+
+        public int TagId { get; set; }
+        public Tag Tag { get; set; } = null!;
+    }
+}
+using System.ComponentModel.DataAnnotations;
+
+namespace TaskFlowManagement.Core.Entities
+{
+    /// <summary>
+    /// TÃ i khoáº£n ngÆ°á»i dÃ¹ng trong há»‡ thá»‘ng.
+    /// Má»™t user cÃ³ thá»ƒ Ä‘Ã³ng nhiá»u vai trÃ² trÃªn task: Assignee, Reviewer, Tester.
+    /// </summary>
+    public class User
+    {
+        public int Id { get; set; }
+
+        /// <summary>TÃªn Ä‘Äƒng nháº­p (unique, dÃ¹ng lÃ m khÃ³a nghiá»‡p vá»¥).</summary>
+        [Required, MaxLength(50)]
+        public string Username { get; set; } = string.Empty;
+
+        /// <summary>Há» vÃ  tÃªn Ä‘áº§y Ä‘á»§.</summary>
+        [Required, MaxLength(100)]
+        public string FullName { get; set; } = string.Empty;
+
+        /// <summary>Email (unique).</summary>
+        [Required, MaxLength(100)]
+        public string Email { get; set; } = string.Empty;
+
+        /// <summary>Máº­t kháº©u Ä‘Ã£ hash báº±ng BCrypt (WorkFactor 12).</summary>
+        [Required, MaxLength(256)]
+        public string PasswordHash { get; set; } = string.Empty;
+
+        [MaxLength(20)]
+        public string? Phone { get; set; }
+
+        [MaxLength(255)]
+        public string? AvatarPath { get; set; }
+
+        /// <summary>TÃ i khoáº£n active hay bá»‹ vÃ´ hiá»‡u hÃ³a (soft delete).</summary>
+        public bool IsActive { get; set; } = true;
+
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime? LastLogin { get; set; }
+
+        /* ================= RELATIONSHIPS ================= */
+
+        /// <summary>Danh sÃ¡ch role cá»§a user (Admin / Manager / Developer).</summary>
+        public ICollection<UserRole> UserRoles { get; set; } = new List<UserRole>();
+
+        /// <summary>Dá»± Ã¡n user lÃ m Owner/PM.</summary>
+        public ICollection<Project> OwnedProjects { get; set; } = new List<Project>();
+
+        /// <summary>Dá»± Ã¡n user tham gia (qua báº£ng ProjectMembers).</summary>
+        public ICollection<ProjectMember> ProjectMemberships { get; set; } = new List<ProjectMember>();
+
+        /// <summary>Task do user táº¡o.</summary>
+        public ICollection<TaskItem> CreatedTasks { get; set; } = new List<TaskItem>();
+
+        /// <summary>Task Ä‘Æ°á»£c giao cho user thá»±c hiá»‡n.</summary>
+        public ICollection<TaskItem> AssignedTasks { get; set; } = new List<TaskItem>();
+
+        // â”€â”€ GD3: Workflow Review & Test â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+        /// <summary>Task user lÃ m Reviewer láº§n 1.</summary>
+        public ICollection<TaskItem> Review1Tasks { get; set; } = new List<TaskItem>();
+
+        /// <summary>Task user lÃ m Reviewer láº§n 2.</summary>
+        public ICollection<TaskItem> Review2Tasks { get; set; } = new List<TaskItem>();
+
+        /// <summary>Task user lÃ m Tester.</summary>
+        public ICollection<TaskItem> TesterTasks { get; set; } = new List<TaskItem>();
+
+        /// <summary>BÃ¬nh luáº­n cá»§a user.</summary>
+        public ICollection<Comment> Comments { get; set; } = new List<Comment>();
+
+        /// <summary>Chi phÃ­ do user táº¡o.</summary>
+        public ICollection<Expense> CreatedExpenses { get; set; } = new List<Expense>();
+    }
+}
+namespace TaskFlowManagement.Core.Entities
+{
+    public class UserRole
+    {
+        public int UserId { get; set; }
+        public User User { get; set; } = null!;
+
+        public int RoleId { get; set; }
+        public Role Role { get; set; } = null!;
+    }
+}
