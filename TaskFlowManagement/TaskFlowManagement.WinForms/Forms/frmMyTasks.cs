@@ -67,6 +67,16 @@ namespace TaskFlowManagement.WinForms.Forms
             _taskService = taskService;
             _projectService = projectService;
             _userService = userService;
+
+            _taskService.TaskDataChanged += OnTaskDataChanged;
+        }
+
+        private async void OnTaskDataChanged(object? sender, EventArgs e)
+        {
+            if (this.IsHandleCreated && !this.IsDisposed)
+            {
+                this.Invoke((MethodInvoker)(async () => await LoadAllTabsAsync()));
+            }
         }
 
         // ── Form Load ─────────────────────────────────────────────────────────
@@ -198,6 +208,12 @@ namespace TaskFlowManagement.WinForms.Forms
         {
             if (lblStatus != null && !lblStatus.IsDisposed)
                 lblStatus.Text = msg;
+        }
+
+        protected override void OnFormClosed(FormClosedEventArgs e)
+        {
+            _taskService.TaskDataChanged -= OnTaskDataChanged;
+            base.OnFormClosed(e);
         }
     }
 }

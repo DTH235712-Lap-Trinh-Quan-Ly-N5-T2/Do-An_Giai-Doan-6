@@ -2,6 +2,7 @@ using TaskFlowManagement.Core.Entities;
 using TaskFlowManagement.Core.Interfaces;
 using TaskFlowManagement.Core.Interfaces.Services;
 using TaskFlowManagement.Core.Constants;
+using TaskFlowManagement.Core.DTOs;
 
 // Namespace "Tasks" (số nhiều) vì "Task" trùng System.Threading.Tasks.Task
 namespace TaskFlowManagement.Core.Services.Tasks
@@ -29,10 +30,17 @@ namespace TaskFlowManagement.Core.Services.Tasks
         private readonly ITaskRepository _taskRepo;
         private readonly IUserRepository _userRepo;
 
+        public event EventHandler? TaskDataChanged;
+
         public TaskService(ITaskRepository taskRepo, IUserRepository userRepo)
         {
             _taskRepo = taskRepo ?? throw new ArgumentNullException(nameof(taskRepo));
             _userRepo = userRepo ?? throw new ArgumentNullException(nameof(userRepo));
+        }
+
+        private void NotifyTaskDataChanged()
+        {
+            TaskDataChanged?.Invoke(this, EventArgs.Empty);
         }
 
         // ══════════════════════════════════════════════════════
@@ -70,6 +78,21 @@ namespace TaskFlowManagement.Core.Services.Tasks
 
         public Task<Dictionary<string, int>> GetStatusSummaryAsync(int projectId)
             => _taskRepo.GetStatusSummaryByProjectAsync(projectId);
+
+        public Task<DashboardStatsDto> GetDashboardStatsAsync(int? projectId = null)
+        {
+            return _taskRepo.GetDashboardStatsAsync(projectId);
+        }
+
+        public Task<List<BudgetReportDto>> GetBudgetReportAsync(int? projectId = null)
+        {
+            return _taskRepo.GetBudgetReportAsync(projectId);
+        }
+
+        public Task<List<ProgressReportDto>> GetProgressReportAsync(int? projectId = null)
+        {
+            return _taskRepo.GetProgressReportAsync(projectId);
+        }
 
         public Task<List<TaskItem>> GetAllByProjectAsync(int projectId)
         {
@@ -109,6 +132,7 @@ namespace TaskFlowManagement.Core.Services.Tasks
                 ? null : task.Description.Trim();
 
             await _taskRepo.AddAsync(task);
+            NotifyTaskDataChanged();
             return (true, $"Đã tạo công việc \"{task.Title}\" thành công.");
         }
 
@@ -139,6 +163,7 @@ namespace TaskFlowManagement.Core.Services.Tasks
             try
             {
                 await _taskRepo.UpdateAsync(task); // ← Một lần duy nhất, đúng hoàn toàn
+                NotifyTaskDataChanged();
                 return (true, "Cập nhật công việc thành công.");
             }
             catch (Exception ex)
@@ -158,6 +183,7 @@ namespace TaskFlowManagement.Core.Services.Tasks
                     "Hãy xóa các công việc con trước.");
 
             await _taskRepo.DeleteAsync(taskId);
+            NotifyTaskDataChanged();
             return (true, $"Đã xóa công việc \"{task.Title}\".");
         }
 
@@ -173,6 +199,7 @@ namespace TaskFlowManagement.Core.Services.Tasks
             if (progress > 100)
                 return (false, "Tiến độ phải từ 0 đến 100.");
             await _taskRepo.UpdateProgressAsync(taskId, progress, ResolvedStatusId);
+            NotifyTaskDataChanged();
 
             return progress == 100
                 ? (true, "🎉 Công việc đã hoàn thành! Trạng thái chuyển sang RESOLVED.")
@@ -215,6 +242,7 @@ namespace TaskFlowManagement.Core.Services.Tasks
             if (isManagerOrAbove)
             {
                 await _taskRepo.UpdateStatusAsync(taskId, statusId);
+                NotifyTaskDataChanged();
                 return (true, $"Đã chuyển trạng thái sang \"{WorkflowConstants.GetStatusName(statusId)}\".");
             }
 
@@ -228,6 +256,7 @@ namespace TaskFlowManagement.Core.Services.Tasks
                     "Liên hệ Manager nếu cần thay đổi task khác.");
 
             await _taskRepo.UpdateStatusAsync(taskId, statusId);
+            NotifyTaskDataChanged();
             return (true, $"Đã chuyển trạng thái sang \"{WorkflowConstants.GetStatusName(statusId)}\".");
         }
 
@@ -290,6 +319,7 @@ namespace TaskFlowManagement.Core.Services.Tasks
             if (testerId.HasValue)    parts.Add("Tester");
 
             var extra = parts.Count > 0 ? $" — đã gán {string.Join(", ", parts)}" : string.Empty;
+            NotifyTaskDataChanged();
             return (true, $"Chuyển sang {newStatus}{extra} thành công.");
         }
 

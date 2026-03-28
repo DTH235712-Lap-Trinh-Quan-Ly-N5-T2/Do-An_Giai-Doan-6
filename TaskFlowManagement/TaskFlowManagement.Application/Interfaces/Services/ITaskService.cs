@@ -1,4 +1,5 @@
 using TaskFlowManagement.Core.Entities;
+using TaskFlowManagement.Core.DTOs;
 
 namespace TaskFlowManagement.Core.Interfaces.Services
 {
@@ -14,6 +15,12 @@ namespace TaskFlowManagement.Core.Interfaces.Services
     /// </summary>
     public interface ITaskService
     {
+        /// <summary>
+        /// Sự kiện được kích hoạt khi có thay đổi dữ liệu công việc.
+        /// Sử dụng để đồng bộ UI (Refresh grid).
+        /// </summary>
+        event EventHandler TaskDataChanged;
+
         // ── Truy vấn đơn ─────────────────────────────────────────
 
         /// <summary>
@@ -76,8 +83,16 @@ namespace TaskFlowManagement.Core.Interfaces.Services
         /// Tóm tắt số task theo Status trong 1 dự án.
         /// Kết quả: { "CREATED": 3, "IN-PROGRESS": 7, ... }
         /// Dùng cho pie chart Dashboard.
-        /// </summary>
         Task<Dictionary<string, int>> GetStatusSummaryAsync(int projectId);
+
+        /// <summary>
+        /// Giai đoạn 6: Tính toán và gom nhóm các chỉ số / biểu đồ cho Dashboard.
+        /// Quản lý tổng hợp nếu projectId = null (Admin), nếu khác null thì lọc theo một dự án đó.
+        /// </summary>
+        Task<DashboardStatsDto> GetDashboardStatsAsync(int? projectId = null);
+
+        Task<List<BudgetReportDto>> GetBudgetReportAsync(int? projectId = null);
+        Task<List<ProgressReportDto>> GetProgressReportAsync(int? projectId = null);
 
         // ── CRUD ─────────────────────────────────────────────────
 

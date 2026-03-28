@@ -110,6 +110,86 @@ namespace TaskFlowManagement.Core.DTOs
 
 
 ========================================
+--- FILE: DashboardDTOs.cs ---
+========================================
+
+using System.Collections.Generic;
+
+namespace TaskFlowManagement.Core.DTOs
+{
+    // =====================================================
+    // DTO cho GĐ6: Dashboard & Thống kê
+    // Cung cấp số liệu tổng quan cho màn hình Admin/Manager
+    // =====================================================
+
+    /// <summary>
+    /// Thống kê tổng quan cho Dashboard. 
+    /// Bao gồm các con số tóm tắt và danh sách chi tiết (Biểu đồ).
+    /// </summary>
+    public class DashboardStatsDto
+    {
+        public int TotalTasks { get; set; }
+        public int CompletedTasks { get; set; }
+        
+        /// <summary>Task đã quá hạn (DueDate < Now & !IsCompleted)</summary>
+        public int OverdueTasks { get; set; }
+        
+        /// <summary>Task sắp đến hạn (trong vòng 7 ngày tới & !IsCompleted)</summary>
+        public int DueSoonTasks { get; set; }
+
+        /// <summary>Thống kê số lượng task theo từng nhóm trạng thái để vẽ PieChart</summary>
+        public List<StatusSummaryDto> StatusSummaries { get; set; } = new List<StatusSummaryDto>();
+
+        /// <summary>Thống kê tiến độ các dự án để vẽ BarChart</summary>
+        public List<ProjectProgressDto> ProjectProgresses { get; set; } = new List<ProjectProgressDto>();
+    }
+
+    /// <summary>
+    /// Số liệu đếm task theo trạng thái. Dùng để vẽ Pie Chart.
+    /// </summary>
+    public class StatusSummaryDto
+    {
+        public string StatusName { get; set; } = string.Empty;
+        public int Count { get; set; }
+        public string ColorHex { get; set; } = string.Empty;
+    }
+
+    /// <summary>
+    /// Đo lường tiến độ tổng thể của Project. Dùng để vẽ Bar Chart.
+    /// </summary>
+    public class ProjectProgressDto
+    {
+        public string ProjectName { get; set; } = string.Empty;
+        public double ProgressPercentage { get; set; }
+    }
+
+    /// <summary>
+    /// Báo cáo ngân sách dự án (GĐ6)
+    /// </summary>
+    public class BudgetReportDto
+    {
+        public string ProjectName { get; set; } = string.Empty;
+        public decimal Budget { get; set; }
+        public decimal TotalExpense { get; set; }
+        public decimal Remaining => Budget - TotalExpense;
+        public double UsagePercentage => Budget > 0 ? (double)Math.Round((TotalExpense / Budget) * 100, 1) : (TotalExpense > 0 ? 100 : 0);
+    }
+
+    /// <summary>
+    /// Báo cáo chi tiết tiến độ dự án (GĐ6)
+    /// </summary>
+    public class ProgressReportDto
+    {
+        public string ProjectName { get; set; } = string.Empty;
+        public int TotalTasks { get; set; }
+        public int CompletedTasks { get; set; }
+        public double AvgProgress { get; set; }
+        public string Status { get; set; } = string.Empty;
+    }
+}
+
+
+========================================
 --- FILE: Attachment.cs ---
 ========================================
 
@@ -941,6 +1021,7 @@ namespace TaskFlowManagement.Core.Interfaces
 ========================================
 
 using TaskFlowManagement.Core.Entities;
+using TaskFlowManagement.Core.DTOs;
 
 namespace TaskFlowManagement.Core.Interfaces
 {
@@ -1050,8 +1131,23 @@ namespace TaskFlowManagement.Core.Interfaces
         /// <summary>
         /// Đếm task theo Status trong 1 dự án.
         /// GroupBy trực tiếp trên DB → trả về Dictionary (Status.Name → Count).
-        /// </summary>
         Task<Dictionary<string, int>> GetStatusSummaryByProjectAsync(int projectId);
+
+        /// <summary>
+        /// Giai đoạn 6: Tính toán số lượng tổng, hoàn thành, quá hạn, và biểu đồ cho Dashboard.
+        /// Chạy EF GroupBy để tối ưu hiệu năng tại Database.
+        /// </summary>
+        Task<DashboardStatsDto> GetDashboardStatsAsync(int? projectId = null);
+
+        /// <summary>
+        /// Giai đoạn 6: Tính tổng Budget và Actual Expenses theo Project
+        /// </summary>
+        Task<List<BudgetReportDto>> GetBudgetReportAsync(int? projectId = null);
+
+        /// <summary>
+        /// Giai đoạn 6: Tính chi tiết Task đã xong vs Tổng số Task theo Project
+        /// </summary>
+        Task<List<ProgressReportDto>> GetProgressReportAsync(int? projectId = null);
 
         // ── Lookup data cho dropdown ──────────────────────────────
 
@@ -1195,6 +1291,7 @@ namespace TaskFlowManagement.Core.Interfaces.Services
 ========================================
 
 using TaskFlowManagement.Core.Entities;
+using TaskFlowManagement.Core.DTOs;
 
 namespace TaskFlowManagement.Core.Interfaces.Services
 {
@@ -1272,8 +1369,16 @@ namespace TaskFlowManagement.Core.Interfaces.Services
         /// Tóm tắt số task theo Status trong 1 dự án.
         /// Kết quả: { "CREATED": 3, "IN-PROGRESS": 7, ... }
         /// Dùng cho pie chart Dashboard.
-        /// </summary>
         Task<Dictionary<string, int>> GetStatusSummaryAsync(int projectId);
+
+        /// <summary>
+        /// Giai đoạn 6: Tính toán và gom nhóm các chỉ số / biểu đồ cho Dashboard.
+        /// Quản lý tổng hợp nếu projectId = null (Admin), nếu khác null thì lọc theo một dự án đó.
+        /// </summary>
+        Task<DashboardStatsDto> GetDashboardStatsAsync(int? projectId = null);
+
+        Task<List<BudgetReportDto>> GetBudgetReportAsync(int? projectId = null);
+        Task<List<ProgressReportDto>> GetProgressReportAsync(int? projectId = null);
 
         // ── CRUD ─────────────────────────────────────────────────
 
@@ -1429,7 +1534,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("TaskFlowManagement.Core")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+61d0675badef8e79a99988b3845f326a3a7ba3d2")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+6a4948dccf61865357fe3cb908e70b837b486736")]
 [assembly: System.Reflection.AssemblyProductAttribute("TaskFlowManagement.Core")]
 [assembly: System.Reflection.AssemblyTitleAttribute("TaskFlowManagement.Core")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
@@ -1482,7 +1587,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("TaskFlowManagement.Core")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+61d0675badef8e79a99988b3845f326a3a7ba3d2")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+6a4948dccf61865357fe3cb908e70b837b486736")]
 [assembly: System.Reflection.AssemblyProductAttribute("TaskFlowManagement.Core")]
 [assembly: System.Reflection.AssemblyTitleAttribute("TaskFlowManagement.Core")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
@@ -1732,6 +1837,7 @@ using TaskFlowManagement.Core.Entities;
 using TaskFlowManagement.Core.Interfaces;
 using TaskFlowManagement.Core.Interfaces.Services;
 using TaskFlowManagement.Core.Constants;
+using TaskFlowManagement.Core.DTOs;
 
 // Namespace "Tasks" (số nhiều) vì "Task" trùng System.Threading.Tasks.Task
 namespace TaskFlowManagement.Core.Services.Tasks
@@ -1800,6 +1906,21 @@ namespace TaskFlowManagement.Core.Services.Tasks
 
         public Task<Dictionary<string, int>> GetStatusSummaryAsync(int projectId)
             => _taskRepo.GetStatusSummaryByProjectAsync(projectId);
+
+        public Task<DashboardStatsDto> GetDashboardStatsAsync(int? projectId = null)
+        {
+            return _taskRepo.GetDashboardStatsAsync(projectId);
+        }
+
+        public Task<List<BudgetReportDto>> GetBudgetReportAsync(int? projectId = null)
+        {
+            return _taskRepo.GetBudgetReportAsync(projectId);
+        }
+
+        public Task<List<ProgressReportDto>> GetProgressReportAsync(int? projectId = null)
+        {
+            return _taskRepo.GetProgressReportAsync(projectId);
+        }
 
         public Task<List<TaskItem>> GetAllByProjectAsync(int projectId)
         {
@@ -5372,7 +5493,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("TaskFlowManagement.Infrastructure")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+61d0675badef8e79a99988b3845f326a3a7ba3d2")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+6a4948dccf61865357fe3cb908e70b837b486736")]
 [assembly: System.Reflection.AssemblyProductAttribute("TaskFlowManagement.Infrastructure")]
 [assembly: System.Reflection.AssemblyTitleAttribute("TaskFlowManagement.Infrastructure")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
@@ -5425,7 +5546,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("TaskFlowManagement.Infrastructure")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+9d3b0a9c7a7188a8c707722957697991e6438383")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+6a4948dccf61865357fe3cb908e70b837b486736")]
 [assembly: System.Reflection.AssemblyProductAttribute("TaskFlowManagement.Infrastructure")]
 [assembly: System.Reflection.AssemblyTitleAttribute("TaskFlowManagement.Infrastructure")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
@@ -5724,6 +5845,8 @@ namespace TaskFlowManagement.Infrastructure.Repositories
 using Microsoft.EntityFrameworkCore;
 using TaskFlowManagement.Core.Entities;
 using TaskFlowManagement.Core.Interfaces;
+using TaskFlowManagement.Core.DTOs;
+using TaskFlowManagement.Core.Constants;
 using TaskFlowManagement.Infrastructure.Data;
 
 namespace TaskFlowManagement.Infrastructure.Repositories
@@ -6115,16 +6238,30 @@ namespace TaskFlowManagement.Infrastructure.Repositories
         /// <summary>
         /// Chuyển trạng thái workflow — chỉ update StatusId + UpdatedAt.
         /// Dùng ExecuteUpdateAsync, không cần load entity.
+        /// Nếu Status = CLOSED (10) thì tự động hoàn thành task.
         /// </summary>
         public async Task UpdateStatusAsync(int taskId, int statusId)
         {
             using var ctx = _contextFactory.CreateDbContext();
 
-            await ctx.TaskItems
-                .Where(t => t.Id == taskId)
-                .ExecuteUpdateAsync(setters => setters
-                    .SetProperty(t => t.StatusId, statusId)
-                    .SetProperty(t => t.UpdatedAt, DateTime.UtcNow));
+            if (statusId == 10) // CLOSED
+            {
+                await ctx.TaskItems
+                    .Where(t => t.Id == taskId)
+                    .ExecuteUpdateAsync(setters => setters
+                        .SetProperty(t => t.StatusId, statusId)
+                        .SetProperty(t => t.IsCompleted, true)
+                        .SetProperty(t => t.CompletedAt, DateTime.UtcNow)
+                        .SetProperty(t => t.UpdatedAt, DateTime.UtcNow));
+            }
+            else
+            {
+                await ctx.TaskItems
+                    .Where(t => t.Id == taskId)
+                    .ExecuteUpdateAsync(setters => setters
+                        .SetProperty(t => t.StatusId, statusId)
+                        .SetProperty(t => t.UpdatedAt, DateTime.UtcNow));
+            }
         }
 
         /// <summary>
@@ -6179,6 +6316,124 @@ namespace TaskFlowManagement.Infrastructure.Repositories
                 .GroupBy(t => t.Status.Name)
                 .Select(g => new { Status = g.Key, Count = g.Count() })
                 .ToDictionaryAsync(x => x.Status, x => x.Count);
+        }
+
+        /// <summary>
+        /// Thống kê chi tiết Giai đoạn 6: Tính toán số lượng và dữ liệu vẽ biểu đồ.
+        /// Chạy 1 số truy vấn SQL tối ưu thông qua LINQ GroupBy.
+        /// </summary>
+        public async Task<DashboardStatsDto> GetDashboardStatsAsync(int? projectId = null)
+        {
+            using var ctx = _contextFactory.CreateDbContext();
+            var now = DateTime.UtcNow;
+            var dueSoonThreshold = now.AddDays(7);
+
+            var taskQuery = ctx.TaskItems.AsNoTracking();
+
+            if (projectId.HasValue)
+            {
+                taskQuery = taskQuery.Where(t => t.ProjectId == projectId.Value);
+            }
+
+            var stats = new DashboardStatsDto();
+
+            // 1. Basic Task Counts (chạy parallel cho nhanh nếu cần, nhưng chạy tuần tự cũng được vì SQLite/SQL Express dễ handle)
+            stats.TotalTasks = await taskQuery.CountAsync();
+            stats.CompletedTasks = await taskQuery.CountAsync(t => t.IsCompleted);
+            stats.OverdueTasks = await taskQuery.CountAsync(t => !t.IsCompleted && t.DueDate < now);
+            stats.DueSoonTasks = await taskQuery.CountAsync(t => !t.IsCompleted && t.DueDate >= now && t.DueDate <= dueSoonThreshold);
+
+            // 2. Status Summary (Vẽ Pie Chart)
+            var statusGroups = await taskQuery
+                .GroupBy(t => t.StatusId)
+                .Select(g => new 
+                { 
+                    StatusId = g.Key, 
+                    Count = g.Count(),
+                    ColorHex = g.Max(t => t.Status.ColorHex)
+                })
+                .ToListAsync();
+
+            foreach (var group in statusGroups)
+            {
+                stats.StatusSummaries.Add(new StatusSummaryDto
+                {
+                    StatusName = WorkflowConstants.GetStatusName(group.StatusId),
+                    Count = group.Count,
+                    ColorHex = string.IsNullOrEmpty(group.ColorHex) ? "#94A3B8" : group.ColorHex
+                });
+            }
+
+            // 3. Project Progress (Vẽ Bar Chart)
+            // Tính số trung bình ProgressPercent của task gốc (ParentTaskId == null)
+            var projectProgressGroups = await taskQuery
+                .Where(t => t.ParentTaskId == null)
+                .GroupBy(t => new { t.ProjectId, t.Project.Name })
+                .Select(g => new
+                {
+                    ProjectName = g.Key.Name,
+                    AvgProgress = g.Average(t => (double)t.ProgressPercent)
+                })
+                .ToListAsync();
+
+            foreach (var proj in projectProgressGroups)
+            {
+                stats.ProjectProgresses.Add(new ProjectProgressDto
+                {
+                    ProjectName = proj.ProjectName,
+                    ProgressPercentage = Math.Round(proj.AvgProgress, 1)
+                });
+            }
+
+            // Sắp xếp tiến độ giảm dần để biểu đồ hiển thị dự án hoàn thành nhất trước
+            stats.ProjectProgresses = stats.ProjectProgresses
+                .OrderByDescending(p => p.ProgressPercentage)
+                .ThenBy(p => p.ProjectName)
+                .ToList();
+
+            return stats;
+        }
+
+        public async Task<List<BudgetReportDto>> GetBudgetReportAsync(int? projectId = null)
+        {
+            using var ctx = _contextFactory.CreateDbContext();
+            var query = ctx.Projects.AsNoTracking();
+            if (projectId.HasValue)
+            {
+                query = query.Where(p => p.Id == projectId.Value);
+            }
+
+            // GroupBy/Select trực tiếp trên Database để lấy Sum Amount
+            return await query
+                .Select(p => new BudgetReportDto
+                {
+                    ProjectName = p.Name,
+                    Budget = p.Budget,
+                    TotalExpense = p.Expenses.Sum(e => e.Amount)
+                })
+                .ToListAsync();
+        }
+
+        public async Task<List<ProgressReportDto>> GetProgressReportAsync(int? projectId = null)
+        {
+            using var ctx = _contextFactory.CreateDbContext();
+            var query = ctx.Projects.AsNoTracking();
+            if (projectId.HasValue)
+            {
+                query = query.Where(p => p.Id == projectId.Value);
+            }
+
+            // Project.Tasks aggregate tại Database
+            return await query
+                .Select(p => new ProgressReportDto
+                {
+                    ProjectName = p.Name,
+                    TotalTasks = p.Tasks.Count(),
+                    CompletedTasks = p.Tasks.Count(t => t.IsCompleted),
+                    AvgProgress = p.Tasks.Any() ? p.Tasks.Average(t => (double)t.ProgressPercent) : 0,
+                    Status = p.Status
+                })
+                .ToListAsync();
         }
 
         // ════════════════════════════════════════════════════════
@@ -6467,6 +6722,8 @@ namespace TaskFlowManagement.WinForms
             // DI tự inject (ITaskService, IProjectService, IUserService) vào constructor
             services.AddTransient<frmTaskList>();
             services.AddTransient<frmMyTasks>();
+            // GD6: Dashboard Thống Kê
+            services.AddTransient<frmDashboard>();
             // frmTaskEdit KHÔNG đăng ký ở đây vì dùng `new` trực tiếp với tham số taskId runtime
 
             ServiceProvider = services.BuildServiceProvider();
@@ -8681,6 +8938,684 @@ namespace TaskFlowManagement.WinForms.Forms
         private DataGridView dgvCustomers;
         private DataGridViewTextBoxColumn colCustId, colCompany, colContact;
         private DataGridViewTextBoxColumn colCustEmail, colCustPhone, colAddress, colCreatedAt;
+    }
+}
+
+
+========================================
+--- FILE: frmDashboard.cs ---
+========================================
+
+using System;
+using System.Collections.Generic;
+using System.Drawing;
+using System.Drawing.Drawing2D;
+using System.Linq;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+using TaskFlowManagement.Core.DTOs;
+using TaskFlowManagement.Core.Interfaces.Services;
+using TaskFlowManagement.WinForms.Common;
+
+namespace TaskFlowManagement.WinForms.Forms
+{
+    public partial class frmDashboard : BaseForm
+    {
+        private readonly ITaskService _taskService;
+        private readonly IProjectService _projectService;
+        
+        private DashboardStatsDto? _currentOverview = null;
+        private List<ProgressReportDto> _currentProgress = new();
+        private List<BudgetReportDto> _currentBudget = new();
+
+        public frmDashboard(ITaskService taskService, IProjectService projectService)
+        {
+            InitializeComponent();
+            _taskService = taskService;
+            _projectService = projectService;
+
+            SetupUI();
+        }
+
+        private void SetupUI()
+        {
+            // Thiết lập Header & Toolbar
+            pnlHeader.Controls.Clear();
+            var header = UIHelper.CreateHeaderPanel("Dashboard Báo Cáo", "Xem số liệu thống kê tổng quan, tiến độ và ngân sách");
+            pnlHeader.Controls.Add(header);
+
+            pnlToolbar.BackColor = UIHelper.ColorBackground;
+            lblProjectFilter.Font = UIHelper.FontLabel;
+            UIHelper.StyleFilterCombo(cboProject);
+
+            // Style các panel
+            pnlPieChart.BackColor = UIHelper.ColorSurface;
+            pnlPieChart.BorderStyle = BorderStyle.FixedSingle;
+
+            pnlProgressChart.BackColor = UIHelper.ColorSurface;
+            pnlProgressChart.BorderStyle = BorderStyle.FixedSingle;
+
+            pnlBudgetChart.BackColor = UIHelper.ColorSurface;
+            pnlBudgetChart.BorderStyle = BorderStyle.FixedSingle;
+
+            // Wire event
+            cboProject.SelectedIndexChanged += async (s, e) => await LoadDashboardDataAsync();
+
+            // Set DoubleBuffered
+            EnableDoubleBuffer(pnlPieChart);
+            EnableDoubleBuffer(pnlProgressChart);
+            EnableDoubleBuffer(pnlBudgetChart);
+
+            // Phân quyền Tab Ngân Quỹ (Developer không được xem thẻ Budget)
+            if (!AppSession.IsManager && !AppSession.IsAdmin)
+            {
+                tabControlDashboard.TabPages.Remove(tabBudget);
+            }
+        }
+
+        private void EnableDoubleBuffer(Control ctrl)
+        {
+            var method = typeof(Control).GetMethod("SetStyle", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+            if (method != null)
+            {
+                method.Invoke(ctrl, new object[] { ControlStyles.OptimizedDoubleBuffer | ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint, true });
+            }
+        }
+
+        private async void frmDashboard_Load(object sender, EventArgs e)
+        {
+            await LoadProjectsAsync();
+            await LoadDashboardDataAsync();
+        }
+
+        public void SelectTab(int tabIndex)
+        {
+            if (tabIndex >= 0 && tabIndex < tabControlDashboard.TabPages.Count)
+            {
+                tabControlDashboard.SelectedIndex = tabIndex;
+            }
+            else if (tabIndex == 2 && tabControlDashboard.TabPages.Count < 3)
+            {
+                MessageBox.Show("Bạn không có quyền truy cập tab Ngân sách (chỉ dành cho Admin/Manager).", "Cảnh báo", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+        }
+
+        private async Task LoadProjectsAsync()
+        {
+            var projects = await _projectService.GetProjectsForUserAsync(AppSession.UserId, AppSession.IsManager);
+            
+            cboProject.Items.Clear();
+            cboProject.Items.Add(new { Id = 0, Name = "-- Toàn bộ hệ thống --" });
+            
+            foreach (var p in projects)
+            {
+                cboProject.Items.Add(new { Id = p.Id, Name = p.Name });
+            }
+
+            cboProject.DisplayMember = "Name";
+            cboProject.ValueMember = "Id";
+            cboProject.SelectedIndex = 0;
+            
+            if (!AppSession.IsManager && !AppSession.IsAdmin)
+            {
+                cboProject.Enabled = false; // Chỉ xem dữ liệu dự án mình đc chỉ định
+            }
+        }
+
+        private async Task LoadDashboardDataAsync()
+        {
+            if (cboProject.SelectedItem == null) return;
+            var selectedId = (int)((dynamic)cboProject.SelectedItem).Id;
+            int? projectId = selectedId == 0 ? null : selectedId;
+
+            try
+            {
+                // Gọi song song cho nhanh
+                var task1 = _taskService.GetDashboardStatsAsync(projectId);
+                var task2 = _taskService.GetProgressReportAsync(projectId);
+                
+                Task<List<BudgetReportDto>>? task3 = null;
+                if (AppSession.IsManager || AppSession.IsAdmin)
+                {
+                    task3 = _taskService.GetBudgetReportAsync(projectId);
+                }
+
+                _currentOverview = await task1;
+                _currentProgress = await task2;
+                if (task3 != null) _currentBudget = await task3;
+                
+                RenderStatCards(_currentOverview);
+                
+                pnlPieChart.Invalidate();
+                pnlProgressChart.Invalidate();
+                if (task3 != null) pnlBudgetChart.Invalidate();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Lỗi tải báo cáo: " + ex.Message, "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        // TAB 1: OVERVIEW & PIE CHART
+        // ══════════════════════════════════════════════════════════════════
+        
+        private void RenderStatCards(DashboardStatsDto stats)
+        {
+            pnlCards.Controls.Clear();
+            pnlCards.Controls.Add(CreateCard("Tổng Công Việc", stats.TotalTasks.ToString(), UIHelper.ColorPrimary));
+            pnlCards.Controls.Add(CreateCard("Đã Hoàn Thành", stats.CompletedTasks.ToString(), UIHelper.ColorSuccess));
+            pnlCards.Controls.Add(CreateCard("Sự Cố (Quá Hạn)", stats.OverdueTasks.ToString(), UIHelper.ColorDanger));
+            pnlCards.Controls.Add(CreateCard("Tới Hạn (7 ngày)", stats.DueSoonTasks.ToString(), UIHelper.ColorWarning));
+        }
+
+        private Panel CreateCard(string title, string value, Color accentColor)
+        {
+            var pnl = new Panel
+            {
+                Width = 260, Height = 110,
+                BackColor = UIHelper.ColorSurface,
+                Margin = new Padding(0, 0, 20, 0),
+            };
+
+            var pnlAccent = new Panel { BackColor = accentColor, Dock = DockStyle.Left, Width = 6 };
+
+            var lblTitle = new Label { Text = title, ForeColor = UIHelper.ColorMuted, Font = UIHelper.FontGridHeader, Location = new Point(20, 20), AutoSize = true };
+            var lblValue = new Label { Text = value, ForeColor = UIHelper.ColorHeaderBg, Font = UIHelper.FontHeaderLarge, Location = new Point(16, 45), AutoSize = true };
+
+            pnl.Controls.Add(lblTitle); pnl.Controls.Add(lblValue); pnl.Controls.Add(pnlAccent);
+            
+            pnl.Paint += (s, e) => {
+                var rect = new Rectangle(0, 0, pnl.Width - 1, pnl.Height - 1);
+                using var pen = new Pen(UIHelper.ColorBorderLight);
+                e.Graphics.DrawRectangle(pen, rect);
+            };
+
+            return pnl;
+        }
+
+        private void PnlPieChart_Paint(object sender, PaintEventArgs e)
+        {
+            var g = e.Graphics;
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+
+            DrawPanelTitle(g, pnlPieChart.Width, "Thống kê trạng thái Công việc (" + (_currentOverview?.TotalTasks ?? 0) + " tasks)");
+
+            if (_currentOverview == null || !_currentOverview.StatusSummaries.Any(x => x.Count > 0))
+            {
+                DrawNoData(g, pnlPieChart.Width, pnlPieChart.Height);
+                return;
+            }
+
+            var totalTasks = _currentOverview.StatusSummaries.Sum(s => s.Count);
+            if (totalTasks == 0) return;
+
+            int padding = 40;
+            int legendAreaHeight = 150;
+            int chartSize = Math.Min(pnlPieChart.Width - padding * 2, pnlPieChart.Height - (60 + legendAreaHeight));
+            if (chartSize < 50) chartSize = 50; 
+
+            var rect = new Rectangle((pnlPieChart.Width - chartSize) / 2, 60, chartSize, chartSize);
+            float currentAngle = -90f; 
+            
+            foreach (var status in _currentOverview.StatusSummaries)
+            {
+                if (status.Count == 0) continue;
+                float sweepAngle = (status.Count / (float)totalTasks) * 360f;
+                using (var brush = new SolidBrush(ColorTranslator.FromHtml(status.ColorHex)))
+                    g.FillPie(brush, rect, currentAngle, sweepAngle);
+                currentAngle += sweepAngle;
+            }
+
+            int holeSize = chartSize / 2;
+            var holeRect = new Rectangle(rect.X + holeSize / 2, rect.Y + holeSize / 2, holeSize, holeSize);
+            using (var brush = new SolidBrush(UIHelper.ColorSurface)) g.FillEllipse(brush, holeRect);
+            
+            // Draw Legend
+            int ledgY = rect.Bottom + 25;
+            int ledgX = 20;
+            float currentColumnMaxWidth = 0;
+
+            foreach (var status in _currentOverview.StatusSummaries.Where(s => s.Count > 0))
+            {
+                string legendText = $"{status.StatusName} ({status.Count})";
+                SizeF textSize = g.MeasureString(legendText, UIHelper.FontBase);
+                
+                float entryWidth = 15 + 10 + textSize.Width + 20;
+                if (entryWidth > currentColumnMaxWidth) currentColumnMaxWidth = entryWidth;
+
+                using (var brush = new SolidBrush(ColorTranslator.FromHtml(status.ColorHex)))
+                    g.FillRectangle(brush, ledgX, ledgY, 15, 15);
+
+                using (var textBrush = new SolidBrush(UIHelper.ColorHeaderBg))
+                    g.DrawString(legendText, UIHelper.FontBase, textBrush, ledgX + 25, ledgY);
+
+                ledgY += 25;
+                if (ledgY > pnlPieChart.Height - 25)
+                {
+                    ledgY = rect.Bottom + 25;
+                    ledgX += (int)currentColumnMaxWidth;
+                    currentColumnMaxWidth = 0;
+                }
+            }
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        // TAB 2: PROGRESS BARS 
+        // ══════════════════════════════════════════════════════════════════
+        private void PnlProgressChart_Paint(object sender, PaintEventArgs e)
+        {
+            var g = e.Graphics;
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+
+            DrawPanelTitle(g, pnlProgressChart.Width, "Tiến độ Thực tế Dự án (%)");
+
+            if (_currentProgress == null || !_currentProgress.Any())
+            {
+                DrawNoData(g, pnlProgressChart.Width, pnlProgressChart.Height);
+                return;
+            }
+
+            int startY = 80;
+            int margin = 30;
+            int barHeight = 25;
+            int maxWidth = pnlProgressChart.Width - margin * 2 - 200; // Đừa 200px cho tiêu đề dự án
+
+            foreach(var proj in _currentProgress)
+            {
+                // Text Dự án
+                using (var fontBrush = new SolidBrush(UIHelper.ColorHeaderBg))
+                {
+                    string pName = proj.ProjectName.Length > 25 ? proj.ProjectName.Substring(0, 22) + "..." : proj.ProjectName;
+                    g.DrawString(pName, UIHelper.FontGridHeader, fontBrush, margin, startY);
+                }
+
+                // Vẽ Khung Bar nền
+                int barX = margin + 200;
+                var bgRect = new Rectangle(barX, startY, maxWidth, barHeight);
+                using (var bgBrush = new SolidBrush(UIHelper.ColorBorderLight))
+                {
+                    g.FillRectangle(bgBrush, bgRect);
+                }
+
+                // Màu Progress phụ thuộc vào trạng thái
+                Color progressColor = UIHelper.ColorPrimary;
+                if (proj.AvgProgress >= 100) progressColor = UIHelper.ColorSuccess;
+                else if (proj.Status == "OnHold" || proj.Status == "Delayed") progressColor = UIHelper.ColorWarning;
+
+                // Vẽ Lõi Progress
+                int fillWidth = (int)(maxWidth * (proj.AvgProgress / 100));
+                if (fillWidth > 0)
+                {
+                    var fillRect = new Rectangle(barX, startY, fillWidth, barHeight);
+                    using (var fillBrush = new SolidBrush(progressColor))
+                    {
+                        g.FillRectangle(fillBrush, fillRect);
+                    }
+                }
+
+                // Vẽ Nhãn % vào trên thanh
+                using (var textBrush = new SolidBrush(UIHelper.ColorDark))
+                {
+                    string pctText = Math.Round(proj.AvgProgress, 1) + "%";
+                    g.DrawString(pctText, UIHelper.FontLabel, textBrush, barX + maxWidth + 10, startY + 4);
+                }
+                
+                // Vẽ số task bên dưới một chút
+                using (var muteBrush = new SolidBrush(UIHelper.ColorMuted))
+                {
+                    g.DrawString($"{proj.CompletedTasks}/{proj.TotalTasks} tasks xong", UIHelper.FontSmall, muteBrush, margin, startY + 15);
+                }
+
+                startY += 60; // Row spacing
+                if (startY > pnlProgressChart.Height - 50) break; // Cắt bỏ nếu tràn màn hình
+            }
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        // TAB 3: BUDGET BAR CHART (So sánh Actual vs Budget)
+        // ══════════════════════════════════════════════════════════════════
+        private void PnlBudgetChart_Paint(object sender, PaintEventArgs e)
+        {
+            var g = e.Graphics;
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+
+            DrawPanelTitle(g, pnlBudgetChart.Width, "Thống kê Ngân sách Thực tế (Budget vs Expenses)");
+
+            if (_currentBudget == null || !_currentBudget.Any())
+            {
+                DrawNoData(g, pnlBudgetChart.Width, pnlBudgetChart.Height);
+                return;
+            }
+
+            int paddingSide = 80;
+            int startY = pnlBudgetChart.Height - 50;
+            int chartHeight = pnlBudgetChart.Height - 150;
+            
+            decimal maxVal = _currentBudget.Max(b => Math.Max(b.Budget, b.TotalExpense));
+            if (maxVal == 0) maxVal = 1000; // Tránh chia 0
+            
+            // Vẽ Grid mờ (Lines)
+            using (var pen = new Pen(UIHelper.ColorBorderLight))
+            using (var brush = new SolidBrush(UIHelper.ColorMuted))
+            {
+                g.DrawLine(pen, paddingSide, startY, pnlBudgetChart.Width - 40, startY); // Trục X
+                g.DrawLine(pen, paddingSide, startY, paddingSide, startY - chartHeight); // Trục Y
+                
+                int steps = 5;
+                for(int i = 0; i <= steps; i++)
+                {
+                    int y = startY - (chartHeight * i / steps);
+                    decimal val = maxVal * i / steps;
+                    string lbl = val >= 1000000 ? (val/1000000).ToString("0.#M") : (val/1000).ToString("0.#k");
+                    
+                    var sf = new StringFormat{ Alignment = StringAlignment.Far };
+                    g.DrawString(lbl, UIHelper.FontSmall, brush, new RectangleF(0, y - 8, paddingSide - 10, 20), sf);
+                    if (i > 0) g.DrawLine(pen, paddingSide, y, pnlBudgetChart.Width - 40, y); 
+                }
+            }
+
+            int pairWidth = Math.Min(100, (pnlBudgetChart.Width - paddingSide - 40) / _currentBudget.Count);
+            int barWidth = pairWidth / 2 - 10;
+            int currentX = paddingSide + 20;
+
+            foreach (var b in _currentBudget)
+            {
+                // Cột Ngân sách định mức (Xanh biếc)
+                int hBudget = (int)(chartHeight * (b.Budget / maxVal));
+                var rectBudget = new Rectangle(currentX, startY - hBudget, barWidth, hBudget);
+                using (var brush = new SolidBrush(Color.FromArgb(59, 130, 246))) // Blue 500
+                    g.FillRectangle(brush, rectBudget);
+
+                // Cột Chi phí thực tế (Xanh lá, hoặc Đỏ nếu vượt)
+                int hExpense = (int)(chartHeight * (b.TotalExpense / maxVal));
+                var rectExpense = new Rectangle(currentX + barWidth + 2, startY - hExpense, barWidth, hExpense);
+                Color expColor = b.TotalExpense > b.Budget ? UIHelper.ColorDanger : UIHelper.ColorSuccess;
+                using (var brush = new SolidBrush(expColor))
+                    g.FillRectangle(brush, rectExpense);
+
+                // Thông báo % dùng
+                using (var strBrush = new SolidBrush(UIHelper.ColorMuted))
+                {
+                    string uPct = $"{b.UsagePercentage}%";
+                    g.DrawString(uPct, UIHelper.FontLabel, strBrush, currentX, startY - Math.Max(hBudget, hExpense) - 20);
+                }
+
+                // Trục X (Tên Dự án)
+                using (var strBrush = new SolidBrush(UIHelper.ColorMuted))
+                {
+                    string label = b.ProjectName;
+                    if (label.Length > 12) label = label.Substring(0, 10) + "...";
+                    var sf = new StringFormat { Alignment = StringAlignment.Center };
+                    var labelRect = new RectangleF(currentX - 5, startY + 10, pairWidth, 30);
+                    g.DrawString(label, UIHelper.FontSmall, strBrush, labelRect, sf);
+                }
+
+                currentX += pairWidth;
+            }
+
+            // Legend
+            int legX = pnlBudgetChart.Width - 250;
+            using (var b1 = new SolidBrush(Color.FromArgb(59, 130, 246))) g.FillRectangle(b1, legX, 20, 15, 15);
+            using (var b2 = new SolidBrush(UIHelper.ColorSuccess)) g.FillRectangle(b2, legX, 45, 15, 15);
+            using (var b3 = new SolidBrush(UIHelper.ColorDanger)) g.FillRectangle(b3, legX, 70, 15, 15);
+            
+            using (var textBrush = new SolidBrush(UIHelper.ColorHeaderBg))
+            {
+                g.DrawString("Ngân sách (Budget)", UIHelper.FontBase, textBrush, legX + 25, 20);
+                g.DrawString("Chi phí thực tế (An toàn)", UIHelper.FontBase, textBrush, legX + 25, 45);
+                g.DrawString("Chi phí thực tế (Vượt quỹ)", UIHelper.FontBase, textBrush, legX + 25, 70);
+            }
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        // HELPERS
+        // ══════════════════════════════════════════════════════════════════
+        private void DrawPanelTitle(Graphics g, int width, string title)
+        {
+            using (var brush = new SolidBrush(UIHelper.ColorHeaderBg))
+                g.DrawString(title, UIHelper.FontHeaderLarge, brush, 20, 20);
+            using (var pen = new Pen(UIHelper.ColorBorderLight))
+                g.DrawLine(pen, 0, 50, width, 50);
+        }
+
+        private void DrawNoData(Graphics g, int width, int height)
+        {
+            using (var brush = new SolidBrush(UIHelper.ColorMuted))
+            {
+                string msg = "Không có dữ liệu...";
+                var size = g.MeasureString(msg, UIHelper.FontBase);
+                g.DrawString(msg, UIHelper.FontBase, brush, (width - size.Width) / 2, (height - size.Height) / 2);
+            }
+        }
+    }
+}
+
+
+========================================
+--- FILE: frmDashboard.Designer.cs ---
+========================================
+
+namespace TaskFlowManagement.WinForms.Forms
+{
+    partial class frmDashboard
+    {
+        private System.ComponentModel.IContainer components = null;
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing && (components != null))
+            {
+                components.Dispose();
+            }
+            base.Dispose(disposing);
+        }
+
+        private void InitializeComponent()
+        {
+            this.pnlHeader = new System.Windows.Forms.Panel();
+            this.pnlToolbar = new System.Windows.Forms.Panel();
+            this.cboProject = new System.Windows.Forms.ComboBox();
+            this.lblProjectFilter = new System.Windows.Forms.Label();
+            this.pnlContent = new System.Windows.Forms.Panel();
+            this.tabControlDashboard = new System.Windows.Forms.TabControl();
+            this.tabOverview = new System.Windows.Forms.TabPage();
+            this.pnlCharts = new System.Windows.Forms.TableLayoutPanel();
+            this.pnlPieChart = new System.Windows.Forms.Panel();
+            this.pnlCards = new System.Windows.Forms.FlowLayoutPanel();
+            this.tabProgress = new System.Windows.Forms.TabPage();
+            this.pnlProgressChart = new System.Windows.Forms.Panel();
+            this.tabBudget = new System.Windows.Forms.TabPage();
+            this.pnlBudgetChart = new System.Windows.Forms.Panel();
+            this.pnlToolbar.SuspendLayout();
+            this.pnlContent.SuspendLayout();
+            this.tabControlDashboard.SuspendLayout();
+            this.tabOverview.SuspendLayout();
+            this.pnlCharts.SuspendLayout();
+            this.tabProgress.SuspendLayout();
+            this.tabBudget.SuspendLayout();
+            this.SuspendLayout();
+            // 
+            // pnlHeader
+            // 
+            this.pnlHeader.Dock = System.Windows.Forms.DockStyle.Top;
+            this.pnlHeader.Location = new System.Drawing.Point(0, 0);
+            this.pnlHeader.Name = "pnlHeader";
+            this.pnlHeader.Size = new System.Drawing.Size(1200, 68);
+            this.pnlHeader.TabIndex = 0;
+            // 
+            // pnlToolbar
+            // 
+            this.pnlToolbar.Controls.Add(this.lblProjectFilter);
+            this.pnlToolbar.Controls.Add(this.cboProject);
+            this.pnlToolbar.Dock = System.Windows.Forms.DockStyle.Top;
+            this.pnlToolbar.Location = new System.Drawing.Point(0, 68);
+            this.pnlToolbar.Name = "pnlToolbar";
+            this.pnlToolbar.Size = new System.Drawing.Size(1200, 52);
+            this.pnlToolbar.TabIndex = 1;
+            // 
+            // lblProjectFilter
+            // 
+            this.lblProjectFilter.AutoSize = true;
+            this.lblProjectFilter.Location = new System.Drawing.Point(20, 18);
+            this.lblProjectFilter.Name = "lblProjectFilter";
+            this.lblProjectFilter.Size = new System.Drawing.Size(60, 15);
+            this.lblProjectFilter.TabIndex = 1;
+            this.lblProjectFilter.Text = "Lọc dự án:";
+            // 
+            // cboProject
+            // 
+            this.cboProject.FormattingEnabled = true;
+            this.cboProject.Location = new System.Drawing.Point(90, 14);
+            this.cboProject.Name = "cboProject";
+            this.cboProject.Size = new System.Drawing.Size(300, 23);
+            this.cboProject.TabIndex = 0;
+            // 
+            // pnlContent
+            // 
+            this.pnlContent.Controls.Add(this.tabControlDashboard);
+            this.pnlContent.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.pnlContent.Location = new System.Drawing.Point(0, 120);
+            this.pnlContent.Name = "pnlContent";
+            this.pnlContent.Padding = new System.Windows.Forms.Padding(20);
+            this.pnlContent.Size = new System.Drawing.Size(1200, 680);
+            this.pnlContent.TabIndex = 2;
+            // 
+            // tabControlDashboard
+            // 
+            this.tabControlDashboard.Controls.Add(this.tabOverview);
+            this.tabControlDashboard.Controls.Add(this.tabProgress);
+            this.tabControlDashboard.Controls.Add(this.tabBudget);
+            this.tabControlDashboard.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.tabControlDashboard.Font = new System.Drawing.Font("Segoe UI", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.tabControlDashboard.Location = new System.Drawing.Point(20, 20);
+            this.tabControlDashboard.Name = "tabControlDashboard";
+            this.tabControlDashboard.SelectedIndex = 0;
+            this.tabControlDashboard.Size = new System.Drawing.Size(1160, 640);
+            this.tabControlDashboard.TabIndex = 0;
+            // 
+            // tabOverview
+            // 
+            this.tabOverview.Controls.Add(this.pnlCharts);
+            this.tabOverview.Controls.Add(this.pnlCards);
+            this.tabOverview.Location = new System.Drawing.Point(4, 26);
+            this.tabOverview.Name = "tabOverview";
+            this.tabOverview.Padding = new System.Windows.Forms.Padding(20);
+            this.tabOverview.Size = new System.Drawing.Size(1152, 610);
+            this.tabOverview.TabIndex = 0;
+            this.tabOverview.Text = "Tổng Quan";
+            this.tabOverview.UseVisualStyleBackColor = true;
+            // 
+            // pnlCharts
+            // 
+            this.pnlCharts.ColumnCount = 1;
+            this.pnlCharts.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
+            this.pnlCharts.Controls.Add(this.pnlPieChart, 0, 0);
+            this.pnlCharts.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.pnlCharts.Location = new System.Drawing.Point(20, 140);
+            this.pnlCharts.Name = "pnlCharts";
+            this.pnlCharts.RowCount = 1;
+            this.pnlCharts.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
+            this.pnlCharts.Size = new System.Drawing.Size(1112, 450);
+            this.pnlCharts.TabIndex = 1;
+            // 
+            // pnlPieChart
+            // 
+            this.pnlPieChart.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.pnlPieChart.Location = new System.Drawing.Point(0, 20);
+            this.pnlPieChart.Margin = new System.Windows.Forms.Padding(0, 20, 0, 0);
+            this.pnlPieChart.Name = "pnlPieChart";
+            this.pnlPieChart.Size = new System.Drawing.Size(1112, 430);
+            this.pnlPieChart.TabIndex = 0;
+            this.pnlPieChart.Paint += new System.Windows.Forms.PaintEventHandler(this.PnlPieChart_Paint);
+            // 
+            // pnlCards
+            // 
+            this.pnlCards.Dock = System.Windows.Forms.DockStyle.Top;
+            this.pnlCards.Location = new System.Drawing.Point(20, 20);
+            this.pnlCards.Name = "pnlCards";
+            this.pnlCards.Size = new System.Drawing.Size(1112, 120);
+            this.pnlCards.TabIndex = 0;
+            this.pnlCards.WrapContents = false;
+            // 
+            // tabProgress
+            // 
+            this.tabProgress.Controls.Add(this.pnlProgressChart);
+            this.tabProgress.Location = new System.Drawing.Point(4, 26);
+            this.tabProgress.Name = "tabProgress";
+            this.tabProgress.Padding = new System.Windows.Forms.Padding(20);
+            this.tabProgress.Size = new System.Drawing.Size(1152, 610);
+            this.tabProgress.TabIndex = 1;
+            this.tabProgress.Text = "Báo cáo tiến độ";
+            this.tabProgress.UseVisualStyleBackColor = true;
+            // 
+            // pnlProgressChart
+            // 
+            this.pnlProgressChart.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.pnlProgressChart.Location = new System.Drawing.Point(20, 20);
+            this.pnlProgressChart.Name = "pnlProgressChart";
+            this.pnlProgressChart.Size = new System.Drawing.Size(1112, 570);
+            this.pnlProgressChart.TabIndex = 0;
+            this.pnlProgressChart.Paint += new System.Windows.Forms.PaintEventHandler(this.PnlProgressChart_Paint);
+            // 
+            // tabBudget
+            // 
+            this.tabBudget.Controls.Add(this.pnlBudgetChart);
+            this.tabBudget.Location = new System.Drawing.Point(4, 26);
+            this.tabBudget.Name = "tabBudget";
+            this.tabBudget.Padding = new System.Windows.Forms.Padding(20);
+            this.tabBudget.Size = new System.Drawing.Size(1152, 610);
+            this.tabBudget.TabIndex = 2;
+            this.tabBudget.Text = "Ngân sách & Chi phí";
+            this.tabBudget.UseVisualStyleBackColor = true;
+            // 
+            // pnlBudgetChart
+            // 
+            this.pnlBudgetChart.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.pnlBudgetChart.Location = new System.Drawing.Point(20, 20);
+            this.pnlBudgetChart.Name = "pnlBudgetChart";
+            this.pnlBudgetChart.Size = new System.Drawing.Size(1112, 570);
+            this.pnlBudgetChart.TabIndex = 0;
+            this.pnlBudgetChart.Paint += new System.Windows.Forms.PaintEventHandler(this.PnlBudgetChart_Paint);
+            // 
+            // frmDashboard
+            // 
+            this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
+            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+            this.BackColor = System.Drawing.Color.White;
+            this.ClientSize = new System.Drawing.Size(1200, 800);
+            this.Controls.Add(this.pnlContent);
+            this.Controls.Add(this.pnlToolbar);
+            this.Controls.Add(this.pnlHeader);
+            this.Name = "frmDashboard";
+            this.Text = "Dashboard Thống Kê";
+            this.Load += new System.EventHandler(this.frmDashboard_Load);
+            this.pnlToolbar.ResumeLayout(false);
+            this.pnlToolbar.PerformLayout();
+            this.pnlContent.ResumeLayout(false);
+            this.tabControlDashboard.ResumeLayout(false);
+            this.tabOverview.ResumeLayout(false);
+            this.pnlCharts.ResumeLayout(false);
+            this.tabProgress.ResumeLayout(false);
+            this.tabBudget.ResumeLayout(false);
+            this.ResumeLayout(false);
+
+        }
+
+        private System.Windows.Forms.Panel pnlHeader;
+        private System.Windows.Forms.Panel pnlToolbar;
+        private System.Windows.Forms.ComboBox cboProject;
+        private System.Windows.Forms.Label lblProjectFilter;
+        private System.Windows.Forms.Panel pnlContent;
+        private System.Windows.Forms.TabControl tabControlDashboard;
+        private System.Windows.Forms.TabPage tabOverview;
+        private System.Windows.Forms.TabPage tabProgress;
+        private System.Windows.Forms.TabPage tabBudget;
+        private System.Windows.Forms.FlowLayoutPanel pnlCards;
+        private System.Windows.Forms.TableLayoutPanel pnlCharts;
+        private System.Windows.Forms.Panel pnlPieChart;
+        private System.Windows.Forms.Panel pnlProgressChart;
+        private System.Windows.Forms.Panel pnlBudgetChart;
     }
 }
 
@@ -10918,15 +11853,34 @@ namespace TaskFlowManagement.WinForms.Forms
         private void menuMyTasks_Click(object sender, EventArgs e)
             => OpenMdiChild(_serviceProvider.GetRequiredService<frmMyTasks>());
 
-        // ── Menu: Báo cáo ─────────────────────────────────────
+        // ── Menu: Báo cáo (Giai đoạn 6) ───────────────────────
+        private void OpenDashboardTab(int index)
+        {
+            var existing = this.MdiChildren.OfType<frmDashboard>().FirstOrDefault();
+            if (existing != null)
+            {
+                existing.Activate();
+                existing.SelectTab(index);
+            }
+            else
+            {
+                var frm = _serviceProvider.GetRequiredService<frmDashboard>();
+                frm.MdiParent = this;
+                frm.WindowState = FormWindowState.Maximized;
+                frm.Show();
+                // Phải show rồi mới SelectTab được vì TabControl cần tạo handle trước
+                frm.SelectTab(index); 
+            }
+        }
+
         private void menuDashboard_Click(object sender, EventArgs e)
-            => ShowComingSoon("Dashboard tổng quan", "Giai đoạn 6");
+            => OpenDashboardTab(0);
 
         private void menuReportProgress_Click(object sender, EventArgs e)
-            => ShowComingSoon("Báo cáo tiến độ", "Giai đoạn 6");
+            => OpenDashboardTab(1);
 
         private void menuReportBudget_Click(object sender, EventArgs e)
-            => ShowComingSoon("Báo cáo ngân sách", "Giai đoạn 6");
+            => OpenDashboardTab(2);
 
         private static void ShowComingSoon(string featureName, string phase)
             => MessageBox.Show(
@@ -15466,7 +16420,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("TaskFlowManagement.WinForms")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+3eee56b88e64d8cf268a1c8afbc426fbdffe1e6a")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+6a4948dccf61865357fe3cb908e70b837b486736")]
 [assembly: System.Reflection.AssemblyProductAttribute("TaskFlowManagement.WinForms")]
 [assembly: System.Reflection.AssemblyTitleAttribute("TaskFlowManagement.WinForms")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
@@ -15523,7 +16477,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("TaskFlowManagement.WinForms")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+3eee56b88e64d8cf268a1c8afbc426fbdffe1e6a")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+cab396aff75872a9d83bd5167fcb3026eaafbc38")]
 [assembly: System.Reflection.AssemblyProductAttribute("TaskFlowManagement.WinForms")]
 [assembly: System.Reflection.AssemblyTitleAttribute("TaskFlowManagement.WinForms")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

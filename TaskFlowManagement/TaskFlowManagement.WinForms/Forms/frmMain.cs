@@ -179,15 +179,34 @@ namespace TaskFlowManagement.WinForms.Forms
         private void menuMyTasks_Click(object sender, EventArgs e)
             => OpenMdiChild(_serviceProvider.GetRequiredService<frmMyTasks>());
 
-        // ── Menu: Báo cáo ─────────────────────────────────────
+        // ── Menu: Báo cáo (Giai đoạn 6) ───────────────────────
+        private void OpenDashboardTab(int index)
+        {
+            var existing = this.MdiChildren.OfType<frmDashboard>().FirstOrDefault();
+            if (existing != null)
+            {
+                existing.Activate();
+                existing.SelectTab(index);
+            }
+            else
+            {
+                var frm = _serviceProvider.GetRequiredService<frmDashboard>();
+                frm.MdiParent = this;
+                frm.WindowState = FormWindowState.Maximized;
+                frm.Show();
+                // Phải show rồi mới SelectTab được vì TabControl cần tạo handle trước
+                frm.SelectTab(index); 
+            }
+        }
+
         private void menuDashboard_Click(object sender, EventArgs e)
-            => ShowComingSoon("Dashboard tổng quan", "Giai đoạn 6");
+            => OpenDashboardTab(0);
 
         private void menuReportProgress_Click(object sender, EventArgs e)
-            => ShowComingSoon("Báo cáo tiến độ", "Giai đoạn 6");
+            => OpenDashboardTab(1);
 
         private void menuReportBudget_Click(object sender, EventArgs e)
-            => ShowComingSoon("Báo cáo ngân sách", "Giai đoạn 6");
+            => OpenDashboardTab(2);
 
         private static void ShowComingSoon(string featureName, string phase)
             => MessageBox.Show(

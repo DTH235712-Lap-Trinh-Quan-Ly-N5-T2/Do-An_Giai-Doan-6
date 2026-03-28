@@ -1,4 +1,5 @@
 using TaskFlowManagement.Core.Entities;
+using TaskFlowManagement.Core.DTOs;
 
 namespace TaskFlowManagement.Core.Interfaces
 {
@@ -108,8 +109,23 @@ namespace TaskFlowManagement.Core.Interfaces
         /// <summary>
         /// Đếm task theo Status trong 1 dự án.
         /// GroupBy trực tiếp trên DB → trả về Dictionary (Status.Name → Count).
-        /// </summary>
         Task<Dictionary<string, int>> GetStatusSummaryByProjectAsync(int projectId);
+
+        /// <summary>
+        /// Giai đoạn 6: Tính toán số lượng tổng, hoàn thành, quá hạn, và biểu đồ cho Dashboard.
+        /// Chạy EF GroupBy để tối ưu hiệu năng tại Database.
+        /// </summary>
+        Task<DashboardStatsDto> GetDashboardStatsAsync(int? projectId = null);
+
+        /// <summary>
+        /// Giai đoạn 6: Tính tổng Budget và Actual Expenses theo Project
+        /// </summary>
+        Task<List<BudgetReportDto>> GetBudgetReportAsync(int? projectId = null);
+
+        /// <summary>
+        /// Giai đoạn 6: Tính chi tiết Task đã xong vs Tổng số Task theo Project
+        /// </summary>
+        Task<List<ProgressReportDto>> GetProgressReportAsync(int? projectId = null);
 
         // ── Lookup data cho dropdown ──────────────────────────────
 

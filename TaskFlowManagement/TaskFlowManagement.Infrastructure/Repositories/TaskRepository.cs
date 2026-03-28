@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using TaskFlowManagement.Core.Entities;
 using TaskFlowManagement.Core.Interfaces;
+using TaskFlowManagement.Core.DTOs;
+using TaskFlowManagement.Core.Constants;
 using TaskFlowManagement.Infrastructure.Data;
 
 namespace TaskFlowManagement.Infrastructure.Repositories
@@ -470,6 +472,124 @@ namespace TaskFlowManagement.Infrastructure.Repositories
                 .GroupBy(t => t.Status.Name)
                 .Select(g => new { Status = g.Key, Count = g.Count() })
                 .ToDictionaryAsync(x => x.Status, x => x.Count);
+        }
+
+        /// <summary>
+        /// Thống kê chi tiết Giai đoạn 6: Tính toán số lượng và dữ liệu vẽ biểu đồ.
+        /// Chạy 1 số truy vấn SQL tối ưu thông qua LINQ GroupBy.
+        /// </summary>
+        public async Task<DashboardStatsDto> GetDashboardStatsAsync(int? projectId = null)
+        {
+            using var ctx = _contextFactory.CreateDbContext();
+            var now = DateTime.UtcNow;
+            var dueSoonThreshold = now.AddDays(7);
+
+            var taskQuery = ctx.TaskItems.AsNoTracking();
+
+            if (projectId.HasValue)
+            {
+                taskQuery = taskQuery.Where(t => t.ProjectId == projectId.Value);
+            }
+
+            var stats = new DashboardStatsDto();
+
+            // 1. Basic Task Counts (chạy parallel cho nhanh nếu cần, nhưng chạy tuần tự cũng được vì SQLite/SQL Express dễ handle)
+            stats.TotalTasks = await taskQuery.CountAsync();
+            stats.CompletedTasks = await taskQuery.CountAsync(t => t.IsCompleted);
+            stats.OverdueTasks = await taskQuery.CountAsync(t => !t.IsCompleted && t.DueDate < now);
+            stats.DueSoonTasks = await taskQuery.CountAsync(t => !t.IsCompleted && t.DueDate >= now && t.DueDate <= dueSoonThreshold);
+
+            // 2. Status Summary (Vẽ Pie Chart)
+            var statusGroups = await taskQuery
+                .GroupBy(t => t.StatusId)
+                .Select(g => new 
+                { 
+                    StatusId = g.Key, 
+                    Count = g.Count(),
+                    ColorHex = g.Max(t => t.Status.ColorHex)
+                })
+                .ToListAsync();
+
+            foreach (var group in statusGroups)
+            {
+                stats.StatusSummaries.Add(new StatusSummaryDto
+                {
+                    StatusName = WorkflowConstants.GetStatusName(group.StatusId),
+                    Count = group.Count,
+                    ColorHex = string.IsNullOrEmpty(group.ColorHex) ? "#94A3B8" : group.ColorHex
+                });
+            }
+
+            // 3. Project Progress (Vẽ Bar Chart)
+            // Tính số trung bình ProgressPercent của task gốc (ParentTaskId == null)
+            var projectProgressGroups = await taskQuery
+                .Where(t => t.ParentTaskId == null)
+                .GroupBy(t => new { t.ProjectId, t.Project.Name })
+                .Select(g => new
+                {
+                    ProjectName = g.Key.Name,
+                    AvgProgress = g.Average(t => (double)t.ProgressPercent)
+                })
+                .ToListAsync();
+
+            foreach (var proj in projectProgressGroups)
+            {
+                stats.ProjectProgresses.Add(new ProjectProgressDto
+                {
+                    ProjectName = proj.ProjectName,
+                    ProgressPercentage = Math.Round(proj.AvgProgress, 1)
+                });
+            }
+
+            // Sắp xếp tiến độ giảm dần để biểu đồ hiển thị dự án hoàn thành nhất trước
+            stats.ProjectProgresses = stats.ProjectProgresses
+                .OrderByDescending(p => p.ProgressPercentage)
+                .ThenBy(p => p.ProjectName)
+                .ToList();
+
+            return stats;
+        }
+
+        public async Task<List<BudgetReportDto>> GetBudgetReportAsync(int? projectId = null)
+        {
+            using var ctx = _contextFactory.CreateDbContext();
+            var query = ctx.Projects.AsNoTracking();
+            if (projectId.HasValue)
+            {
+                query = query.Where(p => p.Id == projectId.Value);
+            }
+
+            // GroupBy/Select trực tiếp trên Database để lấy Sum Amount
+            return await query
+                .Select(p => new BudgetReportDto
+                {
+                    ProjectName = p.Name,
+                    Budget = p.Budget,
+                    TotalExpense = p.Expenses.Sum(e => e.Amount)
+                })
+                .ToListAsync();
+        }
+
+        public async Task<List<ProgressReportDto>> GetProgressReportAsync(int? projectId = null)
+        {
+            using var ctx = _contextFactory.CreateDbContext();
+            var query = ctx.Projects.AsNoTracking();
+            if (projectId.HasValue)
+            {
+                query = query.Where(p => p.Id == projectId.Value);
+            }
+
+            // Project.Tasks aggregate tại Database
+            return await query
+                .Select(p => new ProgressReportDto
+                {
+                    ProjectName = p.Name,
+                    TotalTasks = p.Tasks.Count(),
+                    CompletedTasks = p.Tasks.Count(t => t.IsCompleted),
+                    AvgProgress = p.Tasks.Any() ? p.Tasks.Average(t => (double)t.ProgressPercent) : 0,
+                    Status = p.Status
+                })
+                .ToListAsync();
         }
 
         // ════════════════════════════════════════════════════════

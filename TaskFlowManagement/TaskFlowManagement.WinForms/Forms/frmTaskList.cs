@@ -74,6 +74,18 @@ namespace TaskFlowManagement.WinForms.Forms
             _taskService    = taskService;
             _projectService = projectService;
             _userService    = userService;
+
+            // Đăng ký nhận thông báo thay đổi dữ liệu
+            _taskService.TaskDataChanged += OnTaskDataChanged;
+        }
+
+        private async void OnTaskDataChanged(object? sender, EventArgs e)
+        {
+            // Tránh lỗi khi Form đang đóng hoặc chưa tạo Handle
+            if (this.IsHandleCreated && !this.IsDisposed)
+            {
+                this.Invoke((MethodInvoker)(async () => await LoadDataAsync()));
+            }
         }
 
         // ── Form Load ─────────────────────────────────────────────────────────
@@ -324,6 +336,9 @@ namespace TaskFlowManagement.WinForms.Forms
 
         protected override void OnFormClosed(FormClosedEventArgs e)
         {
+            // Hủy đăng ký sự kiện để tránh Memory Leak
+            _taskService.TaskDataChanged -= OnTaskDataChanged;
+            
             _debounceTimer.Stop();
             _debounceTimer.Dispose();
             base.OnFormClosed(e);

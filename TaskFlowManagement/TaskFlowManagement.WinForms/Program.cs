@@ -76,6 +76,8 @@ namespace TaskFlowManagement.WinForms
             // DI tự inject (ITaskService, IProjectService, IUserService) vào constructor
             services.AddTransient<frmTaskList>();
             services.AddTransient<frmMyTasks>();
+            // GD6: Dashboard Thống Kê
+            services.AddTransient<frmDashboard>();
             // frmTaskEdit KHÔNG đăng ký ở đây vì dùng `new` trực tiếp với tham số taskId runtime
 
             ServiceProvider = services.BuildServiceProvider();
