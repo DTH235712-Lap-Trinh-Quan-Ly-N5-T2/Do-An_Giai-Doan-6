@@ -45,26 +45,39 @@ namespace TaskFlowManagement.WinForms.Forms
         /// <summary>Load danh sách khách hàng, managers, priority vào các dropdown.</summary>
         private async Task LoadDropdownsAsync()
         {
-            // Khách hàng
-            _customers = await _customerRepo.GetAllAsync();
-            cboCustomer.Items.Clear();
-            cboCustomer.Items.Add("— Không chọn —");
-            foreach (var c in _customers)
-                cboCustomer.Items.Add(c.CompanyName);
-            cboCustomer.SelectedIndex = 0;
+            try
+            {
+                // Clear existing bindings to avoid state conflicts when form is reopened
+                cboCustomer.DataSource = null;
+                cboCustomer.Items.Clear();
+                cboOwner.DataSource = null;
+                cboOwner.Items.Clear();
+                cboPriority.DataSource = null;
+                cboPriority.Items.Clear();
 
-            // Managers (Admin + Manager) làm PM
-            var allUsers = await _userService.GetAllUsersAsync();
-            _managers = allUsers.Where(u => u.IsActive &&
-                u.UserRoles.Any(r => r.Role?.Name == "Manager" || r.Role?.Name == "Admin")).ToList();
-            cboOwner.Items.Clear();
-            foreach (var m in _managers)
-                cboOwner.Items.Add(m.FullName);
-            if (cboOwner.Items.Count > 0) cboOwner.SelectedIndex = 0;
+                // Khách hàng
+                _customers = await _customerRepo.GetAllAsync();
+                cboCustomer.Items.Add("— Không chọn —");
+                foreach (var c in _customers)
+                    cboCustomer.Items.Add(c.CompanyName);
+                cboCustomer.SelectedIndex = 0;
 
-            // Priority
-            cboPriority.Items.AddRange(new object[] { "Low", "Medium", "High", "Critical" });
-            cboPriority.SelectedIndex = 1;
+                // Managers (Admin + Manager) làm PM
+                var allUsers = await _userService.GetAllUsersAsync();
+                _managers = allUsers.Where(u => u.IsActive &&
+                    u.UserRoles.Any(r => r.Role?.Name == "Manager" || r.Role?.Name == "Admin")).ToList();
+                foreach (var m in _managers)
+                    cboOwner.Items.Add(m.FullName);
+                if (cboOwner.Items.Count > 0) cboOwner.SelectedIndex = 0;
+
+                // Priority
+                cboPriority.Items.AddRange(new object[] { "Low", "Medium", "High", "Critical" });
+                cboPriority.SelectedIndex = 1;
+            }
+            catch (Exception ex)
+            {
+                lblError.Text = "⚠  Lỗi tải dữ liệu: " + (ex.InnerException?.Message ?? ex.Message);
+            }
         }
 
         /// <summary>Load dữ liệu dự án hiện tại vào form khi chế độ sửa.</summary>
