@@ -13,7 +13,7 @@
 | **MSSV** | DTH235712 |
 | **Lớp** | DH24TH2 |
 | **Năm học** | 2025 – 2026 |
-| **Tiến độ** | Giai đoạn 1 ✅  Giai đoạn 2 ✅  Giai đoạn 3 ✅ Giai đoạn 4 ✅  (4 / 10 hoàn thành) |
+| **Tiến độ** | Giai đoạn 6 ✅  (6 / 10 hoàn thành) |
 
 ---
 
@@ -442,7 +442,7 @@ Mỗi giai đoạn có mục tiêu rõ ràng, danh sách việc cần làm và k
 
 ---
 
-### 🔲 Giai đoạn 5 — Kanban Board
+### ✅ Giai đoạn 5 — Kanban Board
 
 > Mục tiêu: Manager theo dõi tiến độ dự án theo dạng bảng Kanban trực quan.
 
@@ -459,7 +459,7 @@ Mỗi giai đoạn có mục tiêu rõ ràng, danh sách việc cần làm và k
 
 ---
 
-### 🔲 Giai đoạn 6 — Dashboard & Báo cáo
+### ✅ Giai đoạn 6 — Dashboard & Báo cáo
 
 > Mục tiêu: Manager/Admin có màn hình tổng quan nắm bắt toàn bộ tình trạng hệ thống.
 
